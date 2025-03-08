@@ -8,9 +8,18 @@ using namespace genv;
 const int screen_size = 800;
 const int grid_number = 50, grid_size = screen_size/grid_number;
 
+// kigyo (es reszeinek) haladasi iranyahoz
+enum Irany {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT
+};
+
+// ÖTLET: kis nyilacskat rajzolni a segment haladasi iranyaba?
 struct Segment {
-    Segment(int _x, int _y, bool _head):
-        x(_x), y(_y), head(_head)
+    Segment(int _x, int _y, bool _head, Irany _irany):
+        x(_x), y(_y), head(_head), irany(_irany)
     {}
 
     void rajzol()
@@ -19,11 +28,6 @@ struct Segment {
             gout << color(0, 255, 0) << move_to(x*grid_size, y*grid_size) << box(grid_size+1, grid_size+1);
         else
             gout << color(255, 255, 255) << move_to(x*grid_size, y*grid_size) << box(grid_size, grid_size);
-    }
-
-    void mozog()
-    {
-
     }
 
     void setX(int _x)
@@ -39,15 +43,69 @@ struct Segment {
 private:
     int x, y;
     bool head;
+    Irany irany;
 };
 
-struct Food {
+class Food {
+public:
     Food(int _x, int _y):
         x(_x), y(_y)
     {}
 
+    void rajzol()
+    {
+        gout << color(255, 0, 0) << move_to(x*grid_size, y*grid_size) << box(grid_size, grid_size);
+    }
+
+    void place_random()
+    {
+        x = rand()%grid_number;
+        y = rand()%grid_number;
+    }
+
+    int getX()
+    {
+        return x;
+    }
+
+    int getY()
+    {
+        return y;
+    }
+
 private:
     int x, y;
+};
+
+
+class Snake {
+public:
+    Snake()
+    {
+        int startX = rand()%(grid_number/2) + rand()%(grid_number/2);
+        int startY = rand()%(grid_number/2) + rand()%(grid_number/2);
+        Segment head(startX, startY, true, UP);
+        kigyo.push_back(head);
+    }
+
+    void rajzol()
+    {
+        for (Segment s: kigyo)
+            s.rajzol();
+    }
+
+    void novel()
+    {
+
+    }
+
+    void mozog(Irany ujIrany)
+    {
+
+    }
+
+private:
+    vector<Segment> kigyo;
 };
 
 // kezdo kepernyo: grid size?, start, exit
@@ -74,12 +132,11 @@ int main()
     srand(time(0));
     gout.open(screen_size, screen_size);
 
-    //vector<Segment*> kigyo;
-
-    // első szegmens random elhelyezése
-    // TODO: a közepe fele helyezze el (kell random?)
-    Segment kigyo(rand()%grid_number, rand()%grid_number, false);
+    Snake kigyo;
     kigyo.rajzol();
+
+    Food food(rand()%grid_number, rand()%grid_number);
+    food.rajzol();
 
     grid_rajzol();
     gout << refresh;
@@ -91,9 +148,6 @@ int main()
     {
         if (ev.type == ev_timer)
         {
-            kigyo.setX(rand()%grid_number);
-            kigyo.setY(rand()%grid_number);
-            kigyo.rajzol();
             gout << refresh;
         }
 
