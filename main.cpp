@@ -16,18 +16,14 @@ enum Irany {
     RIGHT
 };
 
-// ÖTLET: kis nyilacskat rajzolni a segment haladasi iranyaba?
 struct Segment {
-    Segment(int _x, int _y, bool _head, Irany _irany):
-        x(_x), y(_y), head(_head), irany(_irany)
+    Segment(int _x, int _y):
+        x(_x), y(_y)
     {}
 
     void rajzol()
     {
-        if (head)
-            gout << color(0, 255, 0) << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
-        else
-            gout << color(255, 255, 255) << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
+        gout << color(255, 255, 255) << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
     }
 
     // ezt mashogy megoldani?
@@ -47,11 +43,6 @@ struct Segment {
         y = _y;
     }
 
-    void setIrany(Irany ujIrany)
-    {
-        irany = ujIrany;
-    }
-
     /* getter fv-ek */
     int getX()
     {
@@ -63,17 +54,12 @@ struct Segment {
         return y;
     }
 
-    Irany getIrany()
-    {
-        return irany;
-    }
-
 private:
     int x, y;
-    bool head; // ezt csak arra hasznalom, hogy a fej mas szinu legyen
-    Irany irany;
 };
 
+
+// TODO: collision check sajat magaval, szelevel es fallal
 class Snake {
 public:
     Snake()
@@ -81,96 +67,78 @@ public:
         int startX = grid_number/3 + rand()%(grid_number/3);
         int startY = grid_number/3 + rand()%(grid_number/3);
 
-        kigyo.push_back(new Segment(startX, startY, true, UP));
+        kigyo.push_back(Segment(startX, startY));
+        irany = UP;
     }
 
-    vector<Segment*> getBody()
+    vector<Segment> getBody()
     {
         return kigyo;
     }
 
-    Segment* getHead()
+    Segment getHead()
     {
         return kigyo[0];
     }
 
     void rajzol()
     {
-        for (Segment *s: kigyo)
-            s->rajzol();
+        for (Segment s: kigyo)
+            s.rajzol();
     }
 
     void torol_rajz()
     {
-        for (Segment *s: kigyo)
-            s->torol_rajz();
+        for (Segment s: kigyo)
+            s.torol_rajz();
     }
 
     void novel()
     {
-        switch (kigyo.back()->getIrany())
-        {
-        case UP:
-            kigyo.push_back(new Segment(kigyo.back()->getX(), kigyo.back()->getY()+1, false, kigyo.back()->getIrany()));
-            break;
-        case DOWN:
-            kigyo.push_back(new Segment(kigyo.back()->getX(), kigyo.back()->getY()-1, false, kigyo.back()->getIrany()));
-            break;
-        case LEFT:
-            kigyo.push_back(new Segment(kigyo.back()->getX()+1, kigyo.back()->getY(), false, kigyo.back()->getIrany()));
-            break;
-        case RIGHT:
-            kigyo.push_back(new Segment(kigyo.back()->getX()-1, kigyo.back()->getY(), false, kigyo.back()->getIrany()));
-            break;
-        }
+        kigyo.push_back(kigyo.back());
     }
 
     void ujIrany(Irany uj)
     {
-        Irany fejIrany = kigyo[0]->getIrany();
-
         if (kigyo.size() > 1)
         {
-            if ((fejIrany == UP && uj != DOWN) ||
-                (fejIrany == DOWN && uj != UP) ||
-                (fejIrany == LEFT && uj != RIGHT) ||
-                (fejIrany == RIGHT && uj != LEFT))
-                kigyo[0]->setIrany(uj);
+            if ((irany == UP && uj != DOWN) ||
+                (irany == DOWN && uj != UP) ||
+                (irany == LEFT && uj != RIGHT) ||
+                (irany == RIGHT && uj != LEFT))
+                irany = uj;
         }
         else
-            kigyo[0]->setIrany(uj);
+            irany = uj;
     }
 
     void mozog()
     {
-        for (int i = 0; i < kigyo.size(); ++i)
-        {
-            /* segment-ek mozgatasa a megfelelo iranyba */
-            switch (kigyo[i]->getIrany())
-            {
-            case UP:
-                kigyo[i]->setY(kigyo[i]->getY()-1);
-                break;
-            case DOWN:
-                kigyo[i]->setY(kigyo[i]->getY()+1);
-                break;
-            case LEFT:
-                kigyo[i]->setX(kigyo[i]->getX()-1);
-                break;
-            case RIGHT:
-                kigyo[i]->setX(kigyo[i]->getX()+1);
-                break;
-            }
+        Segment newHead = kigyo[0];
 
-            /* minden segment atveszi az elotte levonek az iranyat ??? */
-            // TODO: rendesen menjenek egymas utan a segmentek
-            if (i > 0)
-                kigyo[i]->setIrany(kigyo[i-1]->getIrany());
+        switch (irany)
+        {
+        case UP:
+            newHead.setY(newHead.getY()-1);
+            break;
+        case DOWN:
+            newHead.setY(newHead.getY()+1);
+            break;
+        case LEFT:
+            newHead.setX(newHead.getX()-1);
+            break;
+        case RIGHT:
+            newHead.setX(newHead.getX()+1);
+            break;
         }
+
+        kigyo.insert(kigyo.begin(), newHead);
+        kigyo.pop_back();
     }
 
 private:
-    vector<Segment*> kigyo;
+    vector<Segment> kigyo;
+    Irany irany;
 };
 
 class Food {
@@ -193,9 +161,9 @@ public:
             y = rand()%(grid_number+1);
 
             validSpawn = true;
-            for (Segment *s: kigyo.getBody())
+            for (Segment s: kigyo.getBody())
             {
-                if (x == s->getX() && y == s->getY())
+                if (x == s.getX() && y == s.getY())
                 {
                     validSpawn = false;
                     break;
@@ -232,8 +200,8 @@ void grid_rajzol()
 
 void eves(Snake &kigyo, Food &food)
 {
-    if (kigyo.getHead()->getX() == food.getX() &&
-        kigyo.getHead()->getY() == food.getY())
+    if (kigyo.getHead().getX() == food.getX() &&
+        kigyo.getHead().getY() == food.getY())
     {
         kigyo.novel();
         food.spawn(kigyo);
@@ -260,6 +228,9 @@ void changeIrany(Snake &kigyo, event ev)
     }
 }
 
+// TODO: belso falak letrehozasa -> kovetelmeny
+// TODO: food-al bug a palya szele fele
+
 int main()
 {
     srand(time(0));
@@ -275,7 +246,7 @@ int main()
     grid_rajzol();
     gout << refresh;
 
-    gin.timer(200);
+    gin.timer(150);
 
     event ev;
     while(gin >> ev)
@@ -305,7 +276,7 @@ int main()
 /* Otletek */
 // kezdo kepernyo: grid size?, start, exit
 // game over kepernyo: retry, main menu?, exit
-
+// kigyo feje legyen mas szinu?
 
 
 
