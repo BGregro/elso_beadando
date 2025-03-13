@@ -144,7 +144,7 @@ public:
         Segment head = kigyo[0];
 
         if (head.getX() < 0 || head.getY() < 0 ||
-            head.getX() > grid_number || head.getY() > grid_number)
+            head.getX() >= grid_number || head.getY() >= grid_number)
             return true;
 
         for (int i = 1; i < kigyo.size(); ++i)
@@ -177,8 +177,8 @@ public:
 
         while (!validSpawn)
         {
-            x = rand()%(grid_number+1);
-            y = rand()%(grid_number+1);
+            x = rand() % grid_number;
+            y = rand() % grid_number;
 
             validSpawn = true;
             for (Segment s: kigyo.getBody())
@@ -206,6 +206,7 @@ private:
     int x, y;
 };
 
+// VEGEN KITOROLNI (ha nem használom)
 void grid_rajzol()
 {
     int w_space = screen_size/grid_number;
@@ -259,7 +260,7 @@ int main()
 
     // hatter kirajzolasa
     gout << background_color << move_to(0,0) << box(screen_size, screen_size);
-    //grid_rajzol();
+    // grid_rajzol();
 
     Snake kigyo;
     kigyo.rajzol();
@@ -287,7 +288,7 @@ int main()
             if (kigyo.checkCollision())
             {
                 running = false;
-                cout << "dead" << endl;
+                continue;
             }
 
             gout << refresh;
