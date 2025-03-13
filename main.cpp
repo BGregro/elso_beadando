@@ -7,8 +7,10 @@ using namespace genv;
 
 const int screen_size = 800;
 const int grid_number = 40, grid_size = screen_size/grid_number;
+const color background_color(207,192,126), kigyo_color(24, 145, 21);
 
-// kigyo (es reszeinek) haladasi iranyahoz
+
+/* kigyo haladasi iranyahoz */
 enum Irany {
     UP,
     DOWN,
@@ -23,13 +25,12 @@ struct Segment {
 
     void rajzol()
     {
-        gout << color(255, 255, 255) << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
+        gout << kigyo_color << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
     }
 
-    // ezt mashogy megoldani?
     void torol_rajz()
     {
-        gout << color(0, 0, 0) << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
+        gout << background_color << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
     }
 
     /* setter fv-ek */
@@ -59,7 +60,7 @@ private:
 };
 
 
-// TODO: collision check sajat magaval, szelevel es fallal
+// TODO: collision check fallal
 class Snake {
 public:
     Snake()
@@ -69,6 +70,7 @@ public:
 
         kigyo.push_back(Segment(startX, startY));
         irany = UP;
+        nextIrany = UP;
     }
 
     vector<Segment> getBody()
@@ -106,14 +108,15 @@ public:
                 (irany == DOWN && uj != UP) ||
                 (irany == LEFT && uj != RIGHT) ||
                 (irany == RIGHT && uj != LEFT))
-                irany = uj;
+                nextIrany = uj;
         }
         else
-            irany = uj;
+            nextIrany = uj;
     }
 
     void mozog()
     {
+        irany = nextIrany;
         Segment newHead = kigyo[0];
 
         switch (irany)
@@ -136,9 +139,26 @@ public:
         kigyo.pop_back();
     }
 
+    bool checkCollision()
+    {
+        Segment head = kigyo[0];
+
+        if (head.getX() < 0 || head.getY() < 0 ||
+            head.getX() > grid_number || head.getY() > grid_number)
+            return true;
+
+        for (int i = 1; i < kigyo.size(); ++i)
+        {
+            if ((head.getX() == kigyo[i].getX() && head.getY() == kigyo[i].getY()))
+                return true;
+        }
+
+        return false;
+    }
+
 private:
     vector<Segment> kigyo;
-    Irany irany;
+    Irany irany, nextIrany;
 };
 
 class Food {
@@ -229,12 +249,17 @@ void changeIrany(Snake &kigyo, event ev)
 }
 
 // TODO: belso falak letrehozasa -> kovetelmeny
-// TODO: food-al bug a palya szele fele
+    // fallal collision kulon legyen kezelve
+// TODO: food-al bug neha spawn-olaskor
 
 int main()
 {
     srand(time(0));
     gout.open(screen_size, screen_size);
+
+    // hatter kirajzolasa
+    gout << background_color << move_to(0,0) << box(screen_size, screen_size);
+    //grid_rajzol();
 
     Snake kigyo;
     kigyo.rajzol();
@@ -243,25 +268,31 @@ int main()
     food.spawn(kigyo);
     food.rajzol();
 
-    grid_rajzol();
     gout << refresh;
 
-    gin.timer(150);
+    gin.timer(100);
+    bool running = true;
 
     event ev;
     while(gin >> ev)
     {
-        if (ev.type == ev_timer)
+        if (ev.type == ev_timer && running)
         {
-            kigyo.torol_rajz();
-            kigyo.mozog();
-
             eves(kigyo, food);
 
+            kigyo.torol_rajz();
+            kigyo.mozog();
             kigyo.rajzol();
+
+            if (kigyo.checkCollision())
+            {
+                running = false;
+                cout << "dead" << endl;
+            }
 
             gout << refresh;
         }
+
 
         if (ev.type == ev_key)
             changeIrany(kigyo, ev);
@@ -277,9 +308,7 @@ int main()
 // kezdo kepernyo: grid size?, start, exit
 // game over kepernyo: retry, main menu?, exit
 // kigyo feje legyen mas szinu?
-
-
-
+// amikor kimegy a kigyo a falon kivulre vagy nekimegy a testenek, akkor maradjon kirajzolodva a vesztes allapot
 
 
 
