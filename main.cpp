@@ -7,7 +7,7 @@ using namespace genv;
 
 const int screen_size = 600;
 const int grid_number = 30, grid_size = screen_size/grid_number;
-const color background_color(207,192,126), kigyo_color(24, 145, 21), black(0,0,0), white(255,255,255);
+const color background_color(207,192,126), kigyo_color(24, 145, 21), food_color(255,0,0), wall_color(100, 100, 100), black(0,0,0), white(255,255,255);
 
 /* kigyo haladasi iranyahoz */
 enum Irany {
@@ -50,45 +50,21 @@ struct Button {
             hovered = false;
     }
 
-    void centerX()
-    {
-        x = (screen_size - bw)/2;
-    }
+    void centerX() { x = (screen_size - bw)/2; }
 
-    void setX(int _x)
-    {
-        x = _x;
-    }
+    void setX(int _x) { x = _x; }
 
-    void setY(int _y)
-    {
-        y = _y;
-    }
+    void setY(int _y) { y = _y; }
 
-    int getX()
-    {
-        return x;
-    }
+    int getX() { return x; }
 
-    int getY()
-    {
-        return y;
-    }
+    int getY() { return y; }
 
-    int getHeight()
-    {
-        return bh;
-    }
+    int getHeight() { return bh; }
 
-    int getWidth()
-    {
-        return bw;
-    }
+    int getWidth() { return bw; }
 
-    bool isHovered()
-    {
-        return hovered;
-    }
+    bool isHovered() { return hovered; }
 
 private:
     int x, y, bw, bh;
@@ -103,7 +79,7 @@ public:
         x(_x), y(_y)
     {}
 
-    virtual void draw() = 0; // Absztrakt függvény, minden leszármazottnak meg kell valósítania
+    virtual void draw() = 0;
 
     int getX() const { return x; }
     int getY() const { return y; }
@@ -144,15 +120,9 @@ public:
         kovIrany = UP;
     }
 
-    vector<Segment> getBody()
-    {
-        return kigyo;
-    }
+    vector<Segment> getBody() { return kigyo; }
 
-    Segment getHead()
-    {
-        return kigyo[0];
-    }
+    Segment getHead() { return kigyo[0]; }
 
     void draw()
     {
@@ -251,7 +221,7 @@ struct Wall : public GameObject
 
     void draw() override
     {
-        gout << color(100, 100, 100) // Szürke fal
+        gout << wall_color
              << move_to(x * grid_size + 1, y * grid_size + 1)
              << box(grid_size - 1, grid_size - 1);
     }
@@ -300,10 +270,7 @@ struct WallObject
             w.draw();
     }
 
-    vector<Wall> getWalls()
-    {
-        return walls;
-    }
+    vector<Wall> getWalls() { return walls; }
 
 private:
     vector<Wall> walls;
@@ -317,7 +284,7 @@ struct Food : public GameObject
 
     void draw() override
     {
-        gout << color(255, 0, 0)
+        gout << food_color
              << move_to(x * grid_size + 1, y * grid_size + 1)
              << box(grid_size - 1, grid_size - 1);
     }
