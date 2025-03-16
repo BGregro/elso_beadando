@@ -397,8 +397,7 @@ void game_over(Button &retry, Button &exit)
     gout << black << move_to(centerTextX("Game Over"), retry.getY() - retry.getHeight() - 10) << text("Game Over");
 }
 
-// TODO: belso falak letrehozasa -> kovetelmeny
-    // fallal collision kulon legyen kezelve
+/* fallal valo collision detection */
 bool falCollision(Snake kigyo, WallObject wall)
 {
     Segment head = kigyo.getHead();
