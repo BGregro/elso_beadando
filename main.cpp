@@ -96,47 +96,43 @@ private:
     string label;
 };
 
-struct Segment {
-    Segment(int _x, int _y):
+struct GameObject
+{
+public:
+    GameObject(int _x, int _y):
         x(_x), y(_y)
     {}
 
-    void rajzol()
-    {
-        gout << kigyo_color << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
-    }
+    virtual void draw() = 0; // Absztrakt függvény, minden leszármazottnak meg kell valósítania
 
-    void torol_rajz()
-    {
-        gout << background_color << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
-    }
+    int getX() const { return x; }
+    int getY() const { return y; }
 
-    void setX(int _x)
-    {
-        x = _x;
-    }
+    void setX(int _x) { x = _x; }
+    void setY(int _y) { y = _y; }
 
-    void setY(int _y)
-    {
-        y = _y;
-    }
-
-    int getX()
-    {
-        return x;
-    }
-
-    int getY()
-    {
-        return y;
-    }
-
-private:
+protected:
     int x, y;
 };
 
-// TODO: collision check fallal
-class Snake {
+struct Segment : public GameObject {
+    Segment(int _x, int _y):
+        GameObject(_x, _y)
+    {}
+
+    void draw() override
+    {
+        gout << kigyo_color << move_to(x * grid_size + 1, y * grid_size + 1)<< box(grid_size - 1, grid_size - 1);
+    }
+
+    void clear_draw()
+    {
+        gout << background_color << move_to(x * grid_size + 1, y * grid_size + 1) << box(grid_size - 1, grid_size - 1);
+    }
+};
+
+class Snake
+{
 public:
     Snake()
     {
@@ -145,7 +141,7 @@ public:
 
         kigyo.push_back(Segment(startX, startY));
         irany = UP;
-        nextIrany = UP;
+        kovIrany = UP;
     }
 
     vector<Segment> getBody()
@@ -158,16 +154,16 @@ public:
         return kigyo[0];
     }
 
-    void rajzol()
+    void draw()
     {
         for (Segment s: kigyo)
-            s.rajzol();
+            s.draw();
     }
 
-    void torol_rajz()
+    void clear_draw()
     {
         for (Segment s: kigyo)
-            s.torol_rajz();
+            s.clear_draw();
     }
 
     void novel()
@@ -183,15 +179,15 @@ public:
                 (irany == DOWN && uj != UP) ||
                 (irany == LEFT && uj != RIGHT) ||
                 (irany == RIGHT && uj != LEFT))
-                nextIrany = uj;
+                kovIrany = uj;
         }
         else
-            nextIrany = uj;
+            kovIrany = uj;
     }
 
     void mozog()
     {
-        irany = nextIrany;
+        irany = kovIrany;
         Segment newHead = kigyo[0];
 
         switch (irany)
@@ -239,25 +235,94 @@ public:
         kigyo.clear();
         kigyo.push_back(Segment(startX, startY));
         irany = UP;
-        nextIrany = UP;
+        kovIrany = UP;
     }
 
 private:
     vector<Segment> kigyo;
-    Irany irany, nextIrany;
+    Irany irany, kovIrany;
 };
 
-class Food {
-public:
-    Food()
+struct Wall : public GameObject
+{
+    Wall(int _x, int _y):
+        GameObject(_x, _y)
     {}
 
-    void rajzol()
+    void draw() override
     {
-        gout << color(255, 0, 0) << move_to(x*grid_size+1, y*grid_size+1) << box(grid_size-1, grid_size-1);
+        gout << color(100, 100, 100) // Szürke fal
+             << move_to(x * grid_size + 1, y * grid_size + 1)
+             << box(grid_size - 1, grid_size - 1);
+    }
+};
+
+struct WallObject
+{
+    void spawn(Snake &kigyo)
+    {
+        walls.clear();
+        bool validSpawn = false;
+
+        while (!validSpawn)
+        {
+            walls.clear();
+            int length = 3 + rand() % (grid_number / 4); // Minimum 3 hosszú fal
+            int startX = rand() % (grid_number - length);
+            int startY = rand() % (grid_number - length);
+            bool horizontal = rand() % 2; // Vízszintes vagy függőleges fal
+
+            validSpawn = true;
+
+            for (int i = 0; i < length; ++i)
+            {
+                int wx = horizontal ? startX + i : startX;
+                int wy = horizontal ? startY : startY + i;
+
+                // Ellenőrti, hogy a fal egy része a kígyóra spawnol-e
+                for (Segment &s : kigyo.getBody())
+                {
+                    if (s.getX() == wx && s.getY() == wy)
+                    {
+                        validSpawn = false;
+                        break;
+                    }
+                }
+
+                walls.emplace_back(wx, wy);
+            }
+        }
     }
 
-    void spawn(Snake kigyo)
+    void draw()
+    {
+        for (Wall& w : walls)
+            w.draw();
+    }
+
+    vector<Wall> getWalls()
+    {
+        return walls;
+    }
+
+private:
+    vector<Wall> walls;
+};
+
+struct Food : public GameObject
+{
+    Food():
+        GameObject(0, 0)
+    {}
+
+    void draw() override
+    {
+        gout << color(255, 0, 0)
+             << move_to(x * grid_size + 1, y * grid_size + 1)
+             << box(grid_size - 1, grid_size - 1);
+    }
+
+    void spawn(Snake &kigyo, WallObject &wall)
     {
         bool validSpawn = false;
 
@@ -265,9 +330,10 @@ public:
         {
             x = rand() % grid_number;
             y = rand() % grid_number;
-
             validSpawn = true;
-            for (Segment s: kigyo.getBody())
+
+            // Ellenőrizzük, hogy a kígyóban van-e
+            for (Segment &s : kigyo.getBody())
             {
                 if (x == s.getX() && y == s.getY())
                 {
@@ -275,36 +341,33 @@ public:
                     break;
                 }
             }
+
+            // Ellenőrizzük, hogy a falban van-e
+            for (Wall &w : wall.getWalls())
+            {
+                if (x == w.getX() && y == w.getY())
+                {
+                    validSpawn = false;
+                    break;
+                }
+            }
         }
     }
-
-    int getX()
-    {
-        return x;
-    }
-
-    int getY()
-    {
-        return y;
-    }
-
-private:
-    int x, y;
 };
 
-/* ellenorzi, hogy a kigyo rajta van-e a food objektumon es ha igen, akkor noveli */
-void eves(Snake &kigyo, Food &food)
+// ellenorzi, hogy a kigyo rajta van-e a food objektumon es ha igen, akkor noveli
+void eves(Snake &kigyo, Food &food, WallObject wall)
 {
     if (kigyo.getHead().getX() == food.getX() &&
         kigyo.getHead().getY() == food.getY())
     {
         kigyo.novel();
-        food.spawn(kigyo);
-        food.rajzol();
+        food.spawn(kigyo, wall);
+        food.draw();
     }
 }
 
-/* kigyo iranyvaltoztatasa gombnyomasra */
+// kigyo iranyvaltoztatasa gombnyomasra
 void changeIrany(Snake &kigyo, event ev)
 {
     switch (ev.keycode)
@@ -324,13 +387,13 @@ void changeIrany(Snake &kigyo, event ev)
     }
 }
 
-/* szoveg x tengelyen valo kozepre igazitasahoz */
+// szoveg x tengelyen valo kozepre igazitasahoz
 int centerTextX(string text)
 {
     return (screen_size - gout.twidth(text))/2;
 }
 
-/* main menu kirajzolasa */
+/* game_state-ek beallitasa */
 void main_menu(Button &start, Button &exit)
 {
     gout << move_to(0,0) << background_color << box(screen_size, screen_size);
@@ -344,13 +407,16 @@ void main_menu(Button &start, Button &exit)
     gout << black << move_to(centerTextX("Snake Game"), start.getY() - start.getHeight() - 10) << text("Snake Game");
 }
 
-void start_game(Snake &kigyo, Food &food)
+void start_game(Snake &kigyo, Food &food, WallObject &wall)
 {
     gout << move_to(0,0) << background_color << box(screen_size, screen_size);
 
-    kigyo.rajzol();
-    food.spawn(kigyo);
-    food.rajzol();
+    wall.spawn(kigyo);
+    food.spawn(kigyo, wall);
+
+    kigyo.draw();
+    wall.draw();
+    food.draw();
 }
 
 void game_over(Button &retry, Button &exit)
@@ -366,19 +432,29 @@ void game_over(Button &retry, Button &exit)
 
 // TODO: belso falak letrehozasa -> kovetelmeny
     // fallal collision kulon legyen kezelve
+bool falCollision(Snake kigyo, WallObject wall)
+{
+    Segment head = kigyo.getHead();
+
+    for (Wall w: wall.getWalls())
+    {
+        if (head.getX() == w.getX() && head.getY() == w.getY())
+            return true;
+    }
+
+    return false;
+}
 
 int main()
 {
     srand(time(0));
     gout.open(screen_size, screen_size);
 
-    GameState game_state = MAIN_MENU;
-
     Snake kigyo;
     Food food;
-
+    WallObject wall;
     Button start_button("Start"), retry_button("Retry"), exit_button("Exit");
-
+    GameState game_state = MAIN_MENU;
     main_menu(start_button, exit_button);
 
     gin.timer(100);
@@ -403,7 +479,7 @@ int main()
                     {
                         /* A jatek elinditasa */
                         game_state = RUNNING;
-                        start_game(kigyo, food);
+                        start_game(kigyo, food, wall);
                     }
                     else if (exit_button.isHovered())
                         exit(0);
@@ -420,9 +496,10 @@ int main()
                 {
                     if (retry_button.isHovered())
                     {
+                        /* A jatek ujrainditasa */
                         game_state = RUNNING;
                         kigyo.respawn();
-                        start_game(kigyo, food);
+                        start_game(kigyo, food, wall);
                     }
                     else if (exit_button.isHovered())
                         exit(0);
@@ -433,13 +510,13 @@ int main()
         /* jatek futtatasa */
         if (ev.type == ev_timer && game_state == RUNNING)
         {
-            eves(kigyo, food);
+            eves(kigyo, food, wall);
 
-            kigyo.torol_rajz();
+            kigyo.clear_draw();
             kigyo.mozog();
-            kigyo.rajzol();
+            kigyo.draw();
 
-            if (kigyo.checkCollision())
+            if (kigyo.checkCollision() || falCollision(kigyo, wall))
             {
                 game_state = GAME_OVER;
                 game_over(retry_button, exit_button);
@@ -458,10 +535,4 @@ int main()
 
     return 0;
 }
-
-/* Otletek */
-// game over kepernyo gombok: retry, main menu?, exit
-// amikor kimegy a kigyo a falon kivulre vagy nekimegy a testenek, akkor maradjon kirajzolodva a vesztes allapot
-
-
 
